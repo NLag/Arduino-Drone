@@ -38,11 +38,19 @@ float gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal;
 void setup(){
   pinMode(12, OUTPUT);
   //Arduino (Atmega) pins default to inputs, so they don't need to be explicitly declared as inputs
-  PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
-  PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8) to trigger an interrupt on state change
-  PCMSK0 |= (1 << PCINT1);  // set PCINT1 (digital input 9)to trigger an interrupt on state change
-  PCMSK0 |= (1 << PCINT2);  // set PCINT2 (digital input 10)to trigger an interrupt on state change
-  PCMSK0 |= (1 << PCINT3);  // set PCINT3 (digital input 11)to trigger an interrupt on state change
+  
+//  PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
+//  PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8) to trigger an interrupt on state change
+//  PCMSK0 |= (1 << PCINT1);  // set PCINT1 (digital input 9)to trigger an interrupt on state change
+//  PCMSK0 |= (1 << PCINT2);  // set PCINT2 (digital input 10)to trigger an interrupt on state change
+//  PCMSK0 |= (1 << PCINT3);  // set PCINT3 (digital input 11)to trigger an interrupt on state change
+  //use PCINT8,9,10,11
+  PCICR |= (1 << PCIE1);    // set PCIE1 to enable PCMSK1 scan
+  PCMSK1 |= (1 << PCINT8);  // set PCINT8 (digital input A0) to trigger an interrupt on state change
+  PCMSK1 |= (1 << PCINT9);  // set PCINT9 (digital input A1)to trigger an interrupt on state change
+  PCMSK1 |= (1 << PCINT10);  // set PCINT10 (digital input A2)to trigger an interrupt on state change
+  PCMSK1 |= (1 << PCINT11);  // set PCINT11 (digital input A3)to trigger an interrupt on state change
+   
   Wire.begin();             //Start the I2C as master
   Serial.begin(57600);      //Start the serial connetion @ 57600bps
   delay(250);               //Give the gyro time to start 
@@ -790,11 +798,11 @@ void check_gyro_axes(byte movement){
   
 }
 
-//This routine is called every time input 8, 9, 10 or 11 changed state
-ISR(PCINT0_vect){
+//This routine is called every time input A0, A1, A2 or A3 changed state
+ISR(PCINT1_vect){
   current_time = micros();
   //Channel 1=========================================
-  if(PINB & B00000001){                                        //Is input 8 high?
+  if(PINC & B00000001){                                        //Is input 8 high?
     if(last_channel_1 == 0){                                   //Input 8 changed from 0 to 1
       last_channel_1 = 1;                                      //Remember current input state
       timer_1 = current_time;                                  //Set timer_1 to current_time
@@ -805,7 +813,7 @@ ISR(PCINT0_vect){
     receiver_input_channel_1 = current_time - timer_1;         //Channel 1 is current_time - timer_1
   }
   //Channel 2=========================================
-  if(PINB & B00000010 ){                                       //Is input 9 high?
+  if(PINC & B00000010 ){                                       //Is input 9 high?
     if(last_channel_2 == 0){                                   //Input 9 changed from 0 to 1
       last_channel_2 = 1;                                      //Remember current input state
       timer_2 = current_time;                                  //Set timer_2 to current_time
@@ -816,7 +824,7 @@ ISR(PCINT0_vect){
     receiver_input_channel_2 = current_time - timer_2;         //Channel 2 is current_time - timer_2
   }
   //Channel 3=========================================
-  if(PINB & B00000100 ){                                       //Is input 10 high?
+  if(PINC & B00000100 ){                                       //Is input 10 high?
     if(last_channel_3 == 0){                                   //Input 10 changed from 0 to 1
       last_channel_3 = 1;                                      //Remember current input state
       timer_3 = current_time;                                  //Set timer_3 to current_time
@@ -828,7 +836,7 @@ ISR(PCINT0_vect){
 
   }
   //Channel 4=========================================
-  if(PINB & B00001000 ){                                       //Is input 11 high?
+  if(PINC & B00001000 ){                                       //Is input 11 high?
     if(last_channel_4 == 0){                                   //Input 11 changed from 0 to 1
       last_channel_4 = 1;                                      //Remember current input state
       timer_4 = current_time;                                  //Set timer_4 to current_time
