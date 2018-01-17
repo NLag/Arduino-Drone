@@ -122,11 +122,18 @@ void setup(){
   gyro_axis_cal[2] /= 2000;                                                 //Divide the pitch total by 2000.
   gyro_axis_cal[3] /= 2000;                                                 //Divide the yaw total by 2000.
 
-  PCICR |= (1 << PCIE0);                                                    //Set PCIE0 to enable PCMSK0 scan.
-  PCMSK0 |= (1 << PCINT0);                                                  //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
-  PCMSK0 |= (1 << PCINT1);                                                  //Set PCINT1 (digital input 9)to trigger an interrupt on state change.
-  PCMSK0 |= (1 << PCINT2);                                                  //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
-  PCMSK0 |= (1 << PCINT3);                                                  //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
+  // PCICR |= (1 << PCIE0);                                                    //Set PCIE0 to enable PCMSK0 scan.
+  // PCMSK0 |= (1 << PCINT0);                                                  //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
+  // PCMSK0 |= (1 << PCINT1);                                                  //Set PCINT1 (digital input 9)to trigger an interrupt on state change.
+  // PCMSK0 |= (1 << PCINT2);                                                  //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
+  // PCMSK0 |= (1 << PCINT3);                                                  //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
+
+  //use PCINT8,9,10,11
+  PCICR |= (1 << PCIE1);    // set PCIE1 to enable PCMSK1 scan
+  PCMSK1 |= (1 << PCINT8);  // set PCINT8 (digital input A0) to trigger an interrupt on state change
+  PCMSK1 |= (1 << PCINT9);  // set PCINT9 (digital input A1)to trigger an interrupt on state change
+  PCMSK1 |= (1 << PCINT10);  // set PCINT10 (digital input A2)to trigger an interrupt on state change
+  PCMSK1 |= (1 << PCINT11);  // set PCINT11 (digital input A3)to trigger an interrupt on state change
 
   //Wait until the receiver is active and the throtle is set to the lower position.
   while(receiver_input_channel_3 < 990 || receiver_input_channel_3 > 1020 || receiver_input_channel_4 < 1400){
@@ -349,10 +356,10 @@ void loop(){
 //More information about this subroutine can be found in this video:
 //https://youtu.be/bENjl1KQbvo
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-ISR(PCINT0_vect){
+ISR(PCINT1_vect){
   current_time = micros();
   //Channel 1=========================================
-  if(PINB & B00000001){                                                     //Is input 8 high?
+  if(PINC & C00000001){                                                     //Is input 8 high?
     if(last_channel_1 == 0){                                                //Input 8 changed from 0 to 1.
       last_channel_1 = 1;                                                   //Remember current input state.
       timer_1 = current_time;                                               //Set timer_1 to current_time.
@@ -363,7 +370,7 @@ ISR(PCINT0_vect){
     receiver_input[1] = current_time - timer_1;                             //Channel 1 is current_time - timer_1.
   }
   //Channel 2=========================================
-  if(PINB & B00000010 ){                                                    //Is input 9 high?
+  if(PINC & C00000010 ){                                                    //Is input 9 high?
     if(last_channel_2 == 0){                                                //Input 9 changed from 0 to 1.
       last_channel_2 = 1;                                                   //Remember current input state.
       timer_2 = current_time;                                               //Set timer_2 to current_time.
@@ -374,7 +381,7 @@ ISR(PCINT0_vect){
     receiver_input[2] = current_time - timer_2;                             //Channel 2 is current_time - timer_2.
   }
   //Channel 3=========================================
-  if(PINB & B00000100 ){                                                    //Is input 10 high?
+  if(PINC & C00000100 ){                                                    //Is input 10 high?
     if(last_channel_3 == 0){                                                //Input 10 changed from 0 to 1.
       last_channel_3 = 1;                                                   //Remember current input state.
       timer_3 = current_time;                                               //Set timer_3 to current_time.
@@ -386,7 +393,7 @@ ISR(PCINT0_vect){
 
   }
   //Channel 4=========================================
-  if(PINB & B00001000 ){                                                    //Is input 11 high?
+  if(PINC & C00001000 ){                                                    //Is input 11 high?
     if(last_channel_4 == 0){                                                //Input 11 changed from 0 to 1.
       last_channel_4 = 1;                                                   //Remember current input state.
       timer_4 = current_time;                                               //Set timer_4 to current_time.
