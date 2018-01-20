@@ -19,17 +19,17 @@
 #include <EEPROM.h>             //Include the EEPROM.h library so we can store information onto the EEPROM
 
 //Declaring Global Variables
-byte last_channel_1, last_channel_2, last_channel_3, last_channel_4;
+byte last_channel_1, last_channel_2, last_channel_3, last_channel_4, last_channel_5;
 byte lowByte, highByte, type, gyro_address, error, clockspeed_ok;
-byte channel_1_assign, channel_2_assign, channel_3_assign, channel_4_assign;
+byte channel_1_assign, channel_2_assign, channel_3_assign, channel_4_assign, channel_5_assign;
 byte roll_axis, pitch_axis, yaw_axis;
 byte receiver_check_byte, gyro_check_byte;
-volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
-int center_channel_1, center_channel_2, center_channel_3, center_channel_4;
-int high_channel_1, high_channel_2, high_channel_3, high_channel_4;
-int low_channel_1, low_channel_2, low_channel_3, low_channel_4;
+volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4, receiver_input_channel_5;
+int center_channel_1, center_channel_2, center_channel_3, center_channel_4, center_channel_5;
+int high_channel_1, high_channel_2, high_channel_3, high_channel_4, high_channel_5;
+int low_channel_1, low_channel_2, low_channel_3, low_channel_4, low_channel_5;
 int address, cal_int;
-unsigned long timer, timer_1, timer_2, timer_3, timer_4, current_time;
+unsigned long timer, timer_1, timer_2, timer_3, timer_4, timer_5, current_time;
 float gyro_pitch, gyro_roll, gyro_yaw;
 float gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal;
 
@@ -44,13 +44,17 @@ void setup(){
 //  PCMSK0 |= (1 << PCINT1);  // set PCINT1 (digital input 9)to trigger an interrupt on state change
 //  PCMSK0 |= (1 << PCINT2);  // set PCINT2 (digital input 10)to trigger an interrupt on state change
 //  PCMSK0 |= (1 << PCINT3);  // set PCINT3 (digital input 11)to trigger an interrupt on state change
-  //use PCINT8,9,10,11
+  //use PCINT8,9,10,11 - pin A0 A1 A2 A3
   PCICR |= (1 << PCIE1);    // set PCIE1 to enable PCMSK1 scan
   PCMSK1 |= (1 << PCINT8);  // set PCINT8 (digital input A0) to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT9);  // set PCINT9 (digital input A1)to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT10);  // set PCINT10 (digital input A2)to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT11);  // set PCINT11 (digital input A3)to trigger an interrupt on state change
   
+  //use PCINT0 - pin 8 for AUX channel
+  PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
+  PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8)to trigger an interrupt on state change channel 5-Hov Throt
+
   Wire.begin();             //Start the I2C as master
   Serial.begin(57600);      //Start the serial connetion @ 57600bps
   delay(250);               //Give the gyro time to start 
@@ -109,25 +113,28 @@ void loop(){
     center_channel_2 = receiver_input_channel_2;
     center_channel_3 = receiver_input_channel_3;
     center_channel_4 = receiver_input_channel_4;
+    center_channel_5 = receiver_input_channel_5;
     Serial.println(F(""));
     Serial.println(F("Center positions stored."));
-    Serial.print(F("Digital input 08 = "));
+    Serial.print(F("Digital input A0 = "));
     Serial.println(receiver_input_channel_1);
-    Serial.print(F("Digital input 09 = "));
+    Serial.print(F("Digital input A1 = "));
     Serial.println(receiver_input_channel_2);
-    Serial.print(F("Digital input 10 = "));
+    Serial.print(F("Digital input A2 = "));
     Serial.println(receiver_input_channel_3);
-    Serial.print(F("Digital input 11 = "));
+    Serial.print(F("Digital input A3 = "));
     Serial.println(receiver_input_channel_4);
+    Serial.print(F("Digital input 8 = "));
+    Serial.println(receiver_input_channel_5);
     Serial.println(F(""));
     Serial.println(F(""));
   }
   if(error == 0){  
     Serial.println(F("Move the throttle stick to full throttle and back to center"));
     //Check for throttle movement
-    check_receiver_inputs(1);
-    Serial.print(F("Throttle is connected to digital input "));
-    Serial.println((channel_3_assign & 0b00000111) + 7);
+    check_receiver_inputs(3);
+    Serial.print(F("Throttle is connected to digital input A"));
+    Serial.println((channel_3_assign & 0b00000111) - 1);
     if(channel_3_assign & 0b10000000)Serial.println(F("Channel inverted = yes"));
     else Serial.println(F("Channel inverted = no"));
     wait_sticks_zero();
@@ -136,9 +143,9 @@ void loop(){
     Serial.println(F(""));
     Serial.println(F("Move the roll stick to simulate left wing up and back to center"));
     //Check for throttle movement
-    check_receiver_inputs(2);
-    Serial.print(F("Roll is connected to digital input "));
-    Serial.println((channel_1_assign & 0b00000111) + 7);
+    check_receiver_inputs(1);
+    Serial.print(F("Roll is connected to digital input A"));
+    Serial.println((channel_1_assign & 0b00000111) - 1);
     if(channel_1_assign & 0b10000000)Serial.println(F("Channel inverted = yes"));
     else Serial.println(F("Channel inverted = no"));
     wait_sticks_zero();
@@ -148,9 +155,9 @@ void loop(){
     Serial.println(F(""));
     Serial.println(F("Move the pitch stick to simulate nose up and back to center"));
     //Check for throttle movement
-    check_receiver_inputs(3);
-    Serial.print(F("Pitch is connected to digital input "));
-    Serial.println((channel_2_assign & 0b00000111) + 7);
+    check_receiver_inputs(2);
+    Serial.print(F("Pitch is connected to digital input A"));
+    Serial.println((channel_2_assign & 0b00000111) - 1);
     if(channel_2_assign & 0b10000000)Serial.println(F("Channel inverted = yes"));
     else Serial.println(F("Channel inverted = no"));
     wait_sticks_zero();
@@ -161,9 +168,21 @@ void loop(){
     Serial.println(F("Move the yaw stick to simulate nose right and back to center"));
     //Check for throttle movement
     check_receiver_inputs(4);
-    Serial.print(F("Yaw is connected to digital input "));
-    Serial.println((channel_4_assign & 0b00000111) + 7);
+    Serial.print(F("Yaw is connected to digital input A"));
+    Serial.println((channel_4_assign & 0b00000111) - 1);
     if(channel_4_assign & 0b10000000)Serial.println(F("Channel inverted = yes"));
+    else Serial.println(F("Channel inverted = no"));
+    wait_sticks_zero();
+  }
+  if(error == 0){
+    Serial.println(F(""));
+    Serial.println(F(""));
+    Serial.println(F("Move the AUX to max and back to center"));
+    //Check for AUX movement
+    check_receiver_inputs(5);
+    Serial.print(F("AUX is connected to digital input "));
+    Serial.println((channel_5_assign & 0b00000111) + 7);
+    if(channel_5_assign & 0b10000000)Serial.println(F("Channel inverted = yes"));
     else Serial.println(F("Channel inverted = no"));
     wait_sticks_zero();
   }
@@ -177,30 +196,36 @@ void loop(){
     Serial.println(F(""));
     Serial.println(F(""));
     Serial.println(F("High, low and center values found during setup"));
-    Serial.print(F("Digital input 08 values:"));
+    Serial.print(F("Digital input A0 values:"));
     Serial.print(low_channel_1);
     Serial.print(F(" - "));
     Serial.print(center_channel_1);
     Serial.print(F(" - "));
     Serial.println(high_channel_1);
-    Serial.print(F("Digital input 09 values:"));
+    Serial.print(F("Digital input A1 values:"));
     Serial.print(low_channel_2);
     Serial.print(F(" - "));
     Serial.print(center_channel_2);
     Serial.print(F(" - "));
     Serial.println(high_channel_2);
-    Serial.print(F("Digital input 10 values:"));
+    Serial.print(F("Digital input A2 values:"));
     Serial.print(low_channel_3);
     Serial.print(F(" - "));
     Serial.print(center_channel_3);
     Serial.print(F(" - "));
     Serial.println(high_channel_3);
-    Serial.print(F("Digital input 11 values:"));
+    Serial.print(F("Digital input A3 values:"));
     Serial.print(low_channel_4);
     Serial.print(F(" - "));
     Serial.print(center_channel_4);
     Serial.print(F(" - "));
     Serial.println(high_channel_4);
+    Serial.print(F("Digital input A4 values:"));
+    Serial.print(low_channel_5);
+    Serial.print(F(" - "));
+    Serial.print(center_channel_5);
+    Serial.print(F(" - "));
+    Serial.println(high_channel_5);
     Serial.println(F("Move stick 'nose up' and back to center to continue"));
     check_to_continue();
   }
@@ -393,7 +418,7 @@ void loop(){
     Serial.println(F("Final setup check"));
     Serial.println(F("==================================================="));
     delay(1000);
-    if(receiver_check_byte == 0b00001111){
+    if(receiver_check_byte == 0b00011111){
       Serial.println(F("Receiver channels ok"));
     }
     else{
@@ -456,6 +481,13 @@ void loop(){
     EEPROM.write(33, 'J'); 
     EEPROM.write(34, 'M');
     EEPROM.write(35, 'B');
+    EEPROM.write(36, center_channel_5 & 0b11111111);
+    EEPROM.write(37, center_channel_5 >> 8);
+    EEPROM.write(38, high_channel_5 & 0b11111111);
+    EEPROM.write(39, high_channel_5 >> 8);
+    EEPROM.write(40, low_channel_5 & 0b11111111);
+    EEPROM.write(41, low_channel_5 >> 8);
+    EEPROM.write(42, channel_5_assign);
         
     
     //To make sure evrything is ok, verify the EEPROM data.
@@ -490,7 +522,12 @@ void loop(){
     if('J' != EEPROM.read(33))error = 1;
     if('M' != EEPROM.read(34))error = 1;
     if('B' != EEPROM.read(35))error = 1;
-  
+
+    if(center_channel_5 != ((EEPROM.read(37) << 8) | EEPROM.read(36)))error = 1;
+    if(high_channel_5 != ((EEPROM.read(39) << 8) | EEPROM.read(38)))error = 1;
+    if(low_channel_5 != ((EEPROM.read(41) << 8) | EEPROM.read(40)))error = 1;
+    if(channel_5_assign != EEPROM.read(42))error = 1;
+
     if(error == 1)Serial.println(F("EEPROM verification failed!!! (ERROR 5)"));
     else Serial.println(F("Verification done"));
   }
@@ -644,6 +681,11 @@ void check_receiver_inputs(byte movement){
       trigger = 4;
       receiver_check_byte |= 0b00001000;
       pulse_length = receiver_input_channel_4;
+    }
+    if(receiver_input_channel_5 > 1750 || receiver_input_channel_5 < 1250){
+      trigger = 5;
+      receiver_check_byte |= 0b00010000;
+      pulse_length = receiver_input_channel_5;
     } 
   }
   if(trigger == 0){
@@ -652,21 +694,25 @@ void check_receiver_inputs(byte movement){
   }
   //Assign the stick to the function.
   else{
-    if(movement == 1){
+    if(movement == 3){
       channel_3_assign = trigger;
       if(pulse_length < 1250)channel_3_assign += 0b10000000;
     }
-    if(movement == 2){
+    if(movement == 1){
       channel_1_assign = trigger;
       if(pulse_length < 1250)channel_1_assign += 0b10000000;
     }
-    if(movement == 3){
+    if(movement == 2){
       channel_2_assign = trigger;
       if(pulse_length < 1250)channel_2_assign += 0b10000000;
     }
     if(movement == 4){
       channel_4_assign = trigger;
       if(pulse_length < 1250)channel_4_assign += 0b10000000;
+    }
+    if(movement == 5){
+      channel_5_assign = trigger;
+      if(pulse_length < 1250)channel_5_assign += 0b10000000;
     }
   }
 }
@@ -682,6 +728,8 @@ void check_to_continue(){
     if(channel_2_assign == 0b10000011 && receiver_input_channel_3 < center_channel_3 - 150)continue_byte = 1;
     if(channel_2_assign == 0b00000100 && receiver_input_channel_4 > center_channel_4 + 150)continue_byte = 1;
     if(channel_2_assign == 0b10000100 && receiver_input_channel_4 < center_channel_4 - 150)continue_byte = 1;
+    if(channel_2_assign == 0b00000101 && receiver_input_channel_5 > center_channel_5 + 150)continue_byte = 1;
+    if(channel_2_assign == 0b10000101 && receiver_input_channel_5 < center_channel_5 - 150)continue_byte = 1;
     delay(100);
   }
   wait_sticks_zero();
@@ -690,11 +738,12 @@ void check_to_continue(){
 //Check if the transmitter sticks are in the neutral position
 void wait_sticks_zero(){
   byte zero = 0;
-  while(zero < 15){
+  while(zero < 31){
     if(receiver_input_channel_1 < center_channel_1 + 20 && receiver_input_channel_1 > center_channel_1 - 20)zero |= 0b00000001;
     if(receiver_input_channel_2 < center_channel_2 + 20 && receiver_input_channel_2 > center_channel_2 - 20)zero |= 0b00000010;
     if(receiver_input_channel_3 < center_channel_3 + 20 && receiver_input_channel_3 > center_channel_3 - 20)zero |= 0b00000100;
     if(receiver_input_channel_4 < center_channel_4 + 20 && receiver_input_channel_4 > center_channel_4 - 20)zero |= 0b00001000;
+    if(receiver_input_channel_5 < center_channel_5 + 20 && receiver_input_channel_5 > center_channel_5 - 20)zero |= 0b00010000;
     delay(100);
   }
 }
@@ -708,6 +757,7 @@ void wait_for_receiver(){
     if(receiver_input_channel_2 < 2100 && receiver_input_channel_2 > 900)zero |= 0b00000010;
     if(receiver_input_channel_3 < 2100 && receiver_input_channel_3 > 900)zero |= 0b00000100;
     if(receiver_input_channel_4 < 2100 && receiver_input_channel_4 > 900)zero |= 0b00001000;
+    if(receiver_input_channel_5 < 2100 && receiver_input_channel_5 > 900)zero |= 0b00010000;
     delay(500);
     Serial.print(F("."));
   }
@@ -726,21 +776,27 @@ void register_min_max(){
   low_channel_2 = receiver_input_channel_2;
   low_channel_3 = receiver_input_channel_3;
   low_channel_4 = receiver_input_channel_4;
+  low_channel_5 = receiver_input_channel_5;
   while(receiver_input_channel_1 < center_channel_1 + 20 && receiver_input_channel_1 > center_channel_1 - 20)delay(250);
   Serial.println(F("Measuring endpoints...."));
-  while(zero < 15){
+  while(zero < 31){
     if(receiver_input_channel_1 < center_channel_1 + 20 && receiver_input_channel_1 > center_channel_1 - 20)zero |= 0b00000001;
     if(receiver_input_channel_2 < center_channel_2 + 20 && receiver_input_channel_2 > center_channel_2 - 20)zero |= 0b00000010;
     if(receiver_input_channel_3 < center_channel_3 + 20 && receiver_input_channel_3 > center_channel_3 - 20)zero |= 0b00000100;
     if(receiver_input_channel_4 < center_channel_4 + 20 && receiver_input_channel_4 > center_channel_4 - 20)zero |= 0b00001000;
+    if(receiver_input_channel_5 < center_channel_5 + 20 && receiver_input_channel_5 > center_channel_5 - 20)zero |= 0b00010000;
+
     if(receiver_input_channel_1 < low_channel_1)low_channel_1 = receiver_input_channel_1;
     if(receiver_input_channel_2 < low_channel_2)low_channel_2 = receiver_input_channel_2;
     if(receiver_input_channel_3 < low_channel_3)low_channel_3 = receiver_input_channel_3;
     if(receiver_input_channel_4 < low_channel_4)low_channel_4 = receiver_input_channel_4;
+    if(receiver_input_channel_5 < low_channel_5)low_channel_5 = receiver_input_channel_5;
+    
     if(receiver_input_channel_1 > high_channel_1)high_channel_1 = receiver_input_channel_1;
     if(receiver_input_channel_2 > high_channel_2)high_channel_2 = receiver_input_channel_2;
     if(receiver_input_channel_3 > high_channel_3)high_channel_3 = receiver_input_channel_3;
     if(receiver_input_channel_4 > high_channel_4)high_channel_4 = receiver_input_channel_4;
+    if(receiver_input_channel_5 > high_channel_5)high_channel_5 = receiver_input_channel_5;
     delay(100);
   }
 }
@@ -798,51 +854,67 @@ void check_gyro_axes(byte movement){
   
 }
 
+//This routine is called every time input 8 changed state
+ISR (PCINT0_vect) {
+  current_time = micros();
+  //Channel 5=========================================
+  if(PINB & B00000001 ){                                       //Is input 8 high?
+    if(last_channel_5 == 0){                                   //Input 8 changed from 0 to 1
+      last_channel_5 = 1;                                       //Remember current input state
+      timer_5 = current_time;                                  //Set timer_4 to current_time
+    }
+  }
+  else if(last_channel_5 == 1){                                //Input 8 is not high and changed from 1 to 0
+    last_channel_5 = 0;                                        //Remember current input state
+    receiver_input_channel_5 = current_time - timer_5;         //Channel 5 is current_time - timer_5
+  }
+}
+
 //This routine is called every time input A0, A1, A2 or A3 changed state
 ISR(PCINT1_vect){
   current_time = micros();
   //Channel 1=========================================
-  if(PINC & C00000001){                                        //Is input 8 high?
-    if(last_channel_1 == 0){                                   //Input 8 changed from 0 to 1
+  if(PINC & B00000001){                                        //Is input A0 high?
+    if(last_channel_1 == 0){                                   //Input A0 changed from 0 to 1
       last_channel_1 = 1;                                      //Remember current input state
       timer_1 = current_time;                                  //Set timer_1 to current_time
     }
   }
-  else if(last_channel_1 == 1){                                //Input 8 is not high and changed from 1 to 0
+  else if(last_channel_1 == 1){                                //Input A0 is not high and changed from 1 to 0
     last_channel_1 = 0;                                        //Remember current input state
     receiver_input_channel_1 = current_time - timer_1;         //Channel 1 is current_time - timer_1
   }
   //Channel 2=========================================
-  if(PINC & C00000010){                                       //Is input 9 high?
-    if(last_channel_2 == 0){                                   //Input 9 changed from 0 to 1
+  if(PINC & B00000010){                                       //Is input A1 high?
+    if(last_channel_2 == 0){                                   //Input A1 changed from 0 to 1
       last_channel_2 = 1;                                      //Remember current input state
       timer_2 = current_time;                                  //Set timer_2 to current_time
     }
   }
-  else if(last_channel_2 == 1){                                //Input 9 is not high and changed from 1 to 0
+  else if(last_channel_2 == 1){                                //Input A1 is not high and changed from 1 to 0
     last_channel_2 = 0;                                        //Remember current input state
     receiver_input_channel_2 = current_time - timer_2;         //Channel 2 is current_time - timer_2
   }
   //Channel 3=========================================
-  if(PINC & C00000100 ){                                       //Is input 10 high?
-    if(last_channel_3 == 0){                                   //Input 10 changed from 0 to 1
+  if(PINC & B00000100 ){                                       //Is input A2 high?
+    if(last_channel_3 == 0){                                   //Input A2 changed from 0 to 1
       last_channel_3 = 1;                                      //Remember current input state
       timer_3 = current_time;                                  //Set timer_3 to current_time
     }
   }
-  else if(last_channel_3 == 1){                                //Input 10 is not high and changed from 1 to 0
+  else if(last_channel_3 == 1){                                //Input A2 is not high and changed from 1 to 0
     last_channel_3 = 0;                                        //Remember current input state
     receiver_input_channel_3 = current_time - timer_3;         //Channel 3 is current_time - timer_3
 
   }
   //Channel 4=========================================
-  if(PINC & C00001000 ){                                       //Is input 11 high?
-    if(last_channel_4 == 0){                                   //Input 11 changed from 0 to 1
+  if(PINC & B00001000 ){                                       //Is input A3 high?
+    if(last_channel_4 == 0){                                   //Input A3 changed from 0 to 1
       last_channel_4 = 1;                                      //Remember current input state
       timer_4 = current_time;                                  //Set timer_4 to current_time
     }
   }
-  else if(last_channel_4 == 1){                                //Input 11 is not high and changed from 1 to 0
+  else if(last_channel_4 == 1){                                //Input A3 is not high and changed from 1 to 0
     last_channel_4 = 0;                                        //Remember current input state
     receiver_input_channel_4 = current_time - timer_4;         //Channel 4 is current_time - timer_4
   }
