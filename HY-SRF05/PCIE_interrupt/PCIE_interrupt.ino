@@ -6,13 +6,13 @@ double distance = 0;
 
 void setup() {
   // put your setup code here, to run once:
-  // trig - 8
-  // echo - 9
-  // led - 10
+  // trig - 9
+  // echo - 10
+  // led - 11
   Serial.begin(9600);
-  DDRB |= B00000101;        //Configure digital port 8,10 as output.
+  DDRB |= B00001010;        //Configure digital port 9,11 as output.
   PCICR |= (1 << PCIE0);    //Set PCIE0 to enable PCMSK0 scan.
-  PCMSK0 |= (1 << PCINT1);  //Set PCINT0 (digital input 9) to trigger an interrupt on state change.
+  PCMSK0 |= (1 << PCINT2);  //Set PCINT0 (digital input 10) to trigger an interrupt on state change.
   startsonar();
 }
 
