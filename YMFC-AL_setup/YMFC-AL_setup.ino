@@ -39,11 +39,6 @@ void setup(){
   pinMode(12, OUTPUT);
   //Arduino (Atmega) pins default to inputs, so they don't need to be explicitly declared as inputs
   
-//  PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
-//  PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8) to trigger an interrupt on state change
-//  PCMSK0 |= (1 << PCINT1);  // set PCINT1 (digital input 9)to trigger an interrupt on state change
-//  PCMSK0 |= (1 << PCINT2);  // set PCINT2 (digital input 10)to trigger an interrupt on state change
-//  PCMSK0 |= (1 << PCINT3);  // set PCINT3 (digital input 11)to trigger an interrupt on state change
   //use PCINT8,9,10,11 - pin A0 A1 A2 A3
   PCICR |= (1 << PCIE1);    // set PCIE1 to enable PCMSK1 scan
   PCMSK1 |= (1 << PCINT8);  // set PCINT8 (digital input A0) to trigger an interrupt on state change
@@ -55,10 +50,17 @@ void setup(){
   PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
   PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8)to trigger an interrupt on state change channel 5-Hov Throt
 
+  //use pin 9,10,11 for sonar
+  // 9 for trig, 10 for echo, 11 for led
+  DDRB |= B00001010;        //Configure digital port 9,11 as output.
+  PCICR |= (1 << PCIE0);    //Set PCIE0 to enable PCMSK0 scan.
+  PCMSK0 |= (1 << PCINT2);  //Set PCINT0 (digital input 10) to trigger an interrupt on state change.
+
   Wire.begin();             //Start the I2C as master
   Serial.begin(57600);      //Start the serial connetion @ 57600bps
   delay(250);               //Give the gyro time to start 
 }
+
 //Main program
 void loop(){
   //Show the YMFC-3D V2 intro
@@ -68,12 +70,10 @@ void loop(){
   Serial.println(F("==================================================="));
   Serial.println(F("System check"));
   Serial.println(F("==================================================="));
-  delay(1000);
   Serial.println(F("Checking I2C clock speed."));
-  delay(1000);
 
   Wire.setClock(400000);
-  TWBR = 12;                      //Set the I2C clock speed to 400kHz.
+  TWBR = 12;                      //Set the I2C clock speed to 400kHz for communicate with MPU-6050
   
   #if F_CPU == 16000000L          //If the clock speed is 16MHz include the next code line when compiling
     clockspeed_ok = 1;            //Set clockspeed_ok to 1
@@ -87,12 +87,13 @@ void loop(){
     error = 1;
   }
   
+  delay(1000);
+  
   if(error == 0){
     Serial.println(F(""));
     Serial.println(F("==================================================="));
     Serial.println(F("Transmitter setup"));
     Serial.println(F("==================================================="));
-    delay(1000);
     Serial.print(F("Checking for valid receiver signals."));
     //Wait 10 seconds until all receiver inputs are valid
     wait_for_receiver();
@@ -181,7 +182,7 @@ void loop(){
     //Check for AUX movement
     check_receiver_inputs(5);
     Serial.print(F("AUX is connected to digital input "));
-    Serial.println((channel_5_assign & 0b00000111) + 7);
+    Serial.println((channel_5_assign & 0b00000111) + 3);
     if(channel_5_assign & 0b10000000)Serial.println(F("Channel inverted = yes"));
     else Serial.println(F("Channel inverted = no"));
     wait_sticks_zero();
@@ -752,7 +753,7 @@ void wait_sticks_zero(){
 void wait_for_receiver(){
   byte zero = 0;
   timer = millis() + 10000;
-  while(timer > millis() && zero < 15){
+  while(timer > millis() && zero < 31){
     if(receiver_input_channel_1 < 2100 && receiver_input_channel_1 > 900)zero |= 0b00000001;
     if(receiver_input_channel_2 < 2100 && receiver_input_channel_2 > 900)zero |= 0b00000010;
     if(receiver_input_channel_3 < 2100 && receiver_input_channel_3 > 900)zero |= 0b00000100;
@@ -923,21 +924,21 @@ ISR(PCINT1_vect){
 //Intro subroutine
 void intro(){
   Serial.println(F("==================================================="));
-  delay(1500);
+  delay(200);
   Serial.println(F(""));
   Serial.println(F("Your"));
-  delay(500);
+  delay(200);
   Serial.println(F("  Multicopter"));
-  delay(500);
+  delay(200);
   Serial.println(F("    Flight"));
-  delay(500);
+  delay(200);
   Serial.println(F("      Controller"));
-  delay(1000);
+  delay(200);
   Serial.println(F(""));
   Serial.println(F("YMFC-AL Setup Program"));
   Serial.println(F(""));
   Serial.println(F("==================================================="));
-  delay(1500);
+  delay(200);
   Serial.println(F("For support and questions: www.brokking.net"));
   Serial.println(F(""));
   Serial.println(F("Have fun!"));

@@ -35,18 +35,18 @@
 #include <EEPROM.h>                                  //Include the EEPROM.h library so we can store information onto the EEPROM
 
 //Declaring global variables
-byte last_channel_1, last_channel_2, last_channel_3, last_channel_4;
-byte eeprom_data[36], start, data;
+byte last_channel_1, last_channel_2, last_channel_3, last_channel_4, last_channel_5;
+byte eeprom_data[43], start, data;
 boolean new_function_request,first_angle;
-volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
+volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4, receiver_input_channel_5;
 int esc_1, esc_2, esc_3, esc_4;
 int counter_channel_1, counter_channel_2, counter_channel_3, counter_channel_4;
-int receiver_input[5];
+int receiver_input[6];
 int loop_counter, gyro_address, vibration_counter;
 int temperature;
 long acc_x, acc_y, acc_z, acc_total_vector[20], acc_av_vector, vibration_total_result;
 unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
-unsigned long zero_timer, timer_1, timer_2, timer_3, timer_4, current_time;
+unsigned long zero_timer, timer_1, timer_2, timer_3, timer_4, timer_5, current_time;
 
 int acc_axis[4], gyro_axis[4];
 double gyro_pitch, gyro_roll, gyro_yaw;
@@ -77,7 +77,11 @@ void setup(){
   PCMSK1 |= (1 << PCINT10);  // set PCINT10 (digital input A2)to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT11);  // set PCINT11 (digital input A3)to trigger an interrupt on state change
   
-  for(data = 0; data <= 35; data++)eeprom_data[data] = EEPROM.read(data);               //Read EEPROM for faster data access
+  //use PCINT0 - pin 8 for AUX channel
+  PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
+  PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8)to trigger an interrupt on state change channel 5-Hov Throt
+
+  for(data = 0; data <= 42; data++)eeprom_data[data] = EEPROM.read(data);               //Read EEPROM for faster data access
 
   gyro_address = eeprom_data[32];                                                       //Store the gyro address in the variable.
 
@@ -124,9 +128,9 @@ void loop(){
     for(vibration_counter = 0; vibration_counter < 625; vibration_counter++){           //Do this loop 625 times
       delay(3);                                                                         //Wait 3000us.
       esc_1 = 1000;                                                                     //Set the pulse for ESC 1 to 1000us.
-      esc_2 = 1000;                                                                     //Set the pulse for ESC 1 to 1000us.
-      esc_3 = 1000;                                                                     //Set the pulse for ESC 1 to 1000us.
-      esc_4 = 1000;                                                                     //Set the pulse for ESC 1 to 1000us.
+      esc_2 = 1000;                                                                     //Set the pulse for ESC 2 to 1000us.
+      esc_3 = 1000;                                                                     //Set the pulse for ESC 3 to 1000us.
+      esc_4 = 1000;                                                                     //Set the pulse for ESC 4 to 1000us.
       esc_pulse_output();                                                               //Send the ESC control pulses.
     }
     vibration_counter = 0;                                                              //Reset the vibration_counter variable.
@@ -157,6 +161,7 @@ void loop(){
     receiver_input_channel_2 = convert_receiver_channel(2);                           //Convert the actual receiver signals for roll to the standard 1000 - 2000us.
     receiver_input_channel_3 = convert_receiver_channel(3);                           //Convert the actual receiver signals for throttle to the standard 1000 - 2000us.
     receiver_input_channel_4 = convert_receiver_channel(4);                           //Convert the actual receiver signals for yaw to the standard 1000 - 2000us.
+    receiver_input_channel_5 = convert_receiver_channel(5);                           //Convert the actual receiver signals for yaw to the standard 1000 - 2000us.
 
     if(loop_counter == 125){                                                            //Print the receiver values when the loop_counter variable equals 250.
       print_signals();                                                                  //Print the receiver values on the serial monitor.
@@ -171,9 +176,9 @@ void loop(){
     if(start == 2 && receiver_input_channel_3 < 1050 && receiver_input_channel_4 > 1950)start = 0;
 
     esc_1 = 1000;                                                                       //Set the pulse for ESC 1 to 1000us.
-    esc_2 = 1000;                                                                       //Set the pulse for ESC 1 to 1000us.
-    esc_3 = 1000;                                                                       //Set the pulse for ESC 1 to 1000us.
-    esc_4 = 1000;                                                                       //Set the pulse for ESC 1 to 1000us.
+    esc_2 = 1000;                                                                       //Set the pulse for ESC 2 to 1000us.
+    esc_3 = 1000;                                                                       //Set the pulse for ESC 3 to 1000us.
+    esc_4 = 1000;                                                                       //Set the pulse for ESC 4 to 1000us.
     esc_pulse_output();                                                                 //Send the ESC control pulses.
   }
 
@@ -312,13 +317,27 @@ void loop(){
   }
 }
 
-
+//This routine is called every time input 8 changed state
+ISR (PCINT0_vect) {
+  current_time = micros();
+  //Channel 5=========================================
+  if(PINB & B00000001 ){                                       //Is input 8 high?
+    if(last_channel_5 == 0){                                   //Input 8 changed from 0 to 1
+      last_channel_5 = 1;                                       //Remember current input state
+      timer_5 = current_time;                                  //Set timer_4 to current_time
+    }
+  }
+  else if(last_channel_5 == 1){                                //Input 8 is not high and changed from 1 to 0
+    last_channel_5 = 0;                                        //Remember current input state
+    receiver_input_channel_5 = current_time - timer_5;         //Channel 5 is current_time - timer_5
+  }
+}
 
 //This routine is called every time input 8, 9, 10 or 11 changed state.
 ISR(PCINT1_vect){
   current_time = micros();
   //Channel 1=========================================
-  if(PINC & C00000001){                                        //Is input 8 high?
+  if(PINC & B00000001){                                        //Is input 8 high?
     if(last_channel_1 == 0){                                   //Input 8 changed from 0 to 1.
       last_channel_1 = 1;                                      //Remember current input state.
       timer_1 = current_time;                                  //Set timer_1 to current_time.
@@ -329,7 +348,7 @@ ISR(PCINT1_vect){
     receiver_input[1] = current_time - timer_1;                 //Channel 1 is current_time - timer_1.
   }
   //Channel 2=========================================
-  if(PINC & C00000010 ){                                       //Is input 9 high?
+  if(PINC & B00000010 ){                                       //Is input 9 high?
     if(last_channel_2 == 0){                                   //Input 9 changed from 0 to 1.
       last_channel_2 = 1;                                      //Remember current input state.
       timer_2 = current_time;                                  //Set timer_2 to current_time.
@@ -340,7 +359,7 @@ ISR(PCINT1_vect){
     receiver_input[2] = current_time - timer_2;                //Channel 2 is current_time - timer_2.
   }
   //Channel 3=========================================
-  if(PINC & C00000100 ){                                       //Is input 10 high?
+  if(PINC & B00000100 ){                                       //Is input 10 high?
     if(last_channel_3 == 0){                                   //Input 10 changed from 0 to 1.
       last_channel_3 = 1;                                      //Remember current input state.
       timer_3 = current_time;                                  //Set timer_3 to current_time.
@@ -351,7 +370,7 @@ ISR(PCINT1_vect){
     receiver_input[3] = current_time - timer_3;                //Channel 3 is current_time - timer_3.
   }
   //Channel 4=========================================
-  if(PINC & C00001000 ){                                       //Is input 11 high?
+  if(PINC & B00001000 ){                                       //Is input 11 high?
     if(last_channel_4 == 0){                                   //Input 11 changed from 0 to 1.
       last_channel_4 = 1;                                      //Remember current input state.
       timer_4 = current_time;                                  //Set timer_4 to current_time.
@@ -366,11 +385,12 @@ ISR(PCINT1_vect){
 //Checck if the receiver values are valid within 10 seconds
 void wait_for_receiver(){
   byte zero = 0;                                                                //Set all bits in the variable zero to 0
-  while(zero < 15){                                                             //Stay in this loop until the 4 lowest bits are set
+  while(zero < 31){                                                             //Stay in this loop until the 4 lowest bits are set
     if(receiver_input[1] < 2100 && receiver_input[1] > 900)zero |= 0b00000001;  //Set bit 0 if the receiver pulse 1 is within the 900 - 2100 range
     if(receiver_input[2] < 2100 && receiver_input[2] > 900)zero |= 0b00000010;  //Set bit 1 if the receiver pulse 2 is within the 900 - 2100 range
     if(receiver_input[3] < 2100 && receiver_input[3] > 900)zero |= 0b00000100;  //Set bit 2 if the receiver pulse 3 is within the 900 - 2100 range
     if(receiver_input[4] < 2100 && receiver_input[4] > 900)zero |= 0b00001000;  //Set bit 3 if the receiver pulse 4 is within the 900 - 2100 range
+    if(receiver_input[5] < 2100 && receiver_input[5] > 900)zero |= 0b00010000;  //Set bit 4 if the receiver pulse 5 is within the 900 - 2100 range
     delay(500);                                                                 //Wait 500 milliseconds
   }
 }
@@ -381,29 +401,55 @@ int convert_receiver_channel(byte function){
   byte channel, reverse;                                                       //First we declare some local variables
   int low, center, high, actual;
   int difference;
+  if (function <= 4)
+  {
+    channel = eeprom_data[function + 23] & 0b00000111;                           //What channel corresponds with the specific function
+    if(eeprom_data[function + 23] & 0b10000000)reverse = 1;                      //Reverse channel when most significant bit is set
+    else reverse = 0;                                                            //If the most significant is not set there is no reverse
 
-  channel = eeprom_data[function + 23] & 0b00000111;                           //What channel corresponds with the specific function
-  if(eeprom_data[function + 23] & 0b10000000)reverse = 1;                      //Reverse channel when most significant bit is set
-  else reverse = 0;                                                            //If the most significant is not set there is no reverse
+    actual = receiver_input[channel];                                            //Read the actual receiver value for the corresponding function
+    low = (eeprom_data[channel * 2 + 15] << 8) | eeprom_data[channel * 2 + 14];  //Store the low value for the specific receiver input channel
+    center = (eeprom_data[channel * 2 - 1] << 8) | eeprom_data[channel * 2 - 2]; //Store the center value for the specific receiver input channel
+    high = (eeprom_data[channel * 2 + 7] << 8) | eeprom_data[channel * 2 + 6];   //Store the high value for the specific receiver input channel
 
-  actual = receiver_input[channel];                                            //Read the actual receiver value for the corresponding function
-  low = (eeprom_data[channel * 2 + 15] << 8) | eeprom_data[channel * 2 + 14];  //Store the low value for the specific receiver input channel
-  center = (eeprom_data[channel * 2 - 1] << 8) | eeprom_data[channel * 2 - 2]; //Store the center value for the specific receiver input channel
-  high = (eeprom_data[channel * 2 + 7] << 8) | eeprom_data[channel * 2 + 6];   //Store the high value for the specific receiver input channel
+    if(actual < center){                                                         //The actual receiver value is lower than the center value
+      if(actual < low)actual = low;                                              //Limit the lowest value to the value that was detected during setup
+      difference = ((long)(center - actual) * (long)500) / (center - low);       //Calculate and scale the actual value to a 1000 - 2000us value
+      if(reverse == 1)return 1500 + difference;                                  //If the channel is reversed
+      else return 1500 - difference;                                             //If the channel is not reversed
+    }
+    else if(actual > center){                                                    //The actual receiver value is higher than the center value
+      if(actual > high)actual = high;                                            //Limit the lowest value to the value that was detected during setup
+      difference = ((long)(actual - center) * (long)500) / (high - center);      //Calculate and scale the actual value to a 1000 - 2000us value
+      if(reverse == 1)return 1500 - difference;                                  //If the channel is reversed
+      else return 1500 + difference;                                             //If the channel is not reversed
+    }
+    else return 1500; 
+  } 
+  else {
+    channel = eeprom_data[42] & 0b00000111;
+    if(eeprom_data[42] & 0b10000000)reverse = 1;                                 //Reverse channel when most significant bit is set
+    else reverse = 0;                                                            //If the most significant is not set there is no reverse
 
-  if(actual < center){                                                         //The actual receiver value is lower than the center value
-    if(actual < low)actual = low;                                              //Limit the lowest value to the value that was detected during setup
-    difference = ((long)(center - actual) * (long)500) / (center - low);       //Calculate and scale the actual value to a 1000 - 2000us value
-    if(reverse == 1)return 1500 + difference;                                  //If the channel is reversed
-    else return 1500 - difference;                                             //If the channel is not reversed
+    actual = receiver_input[channel];                                            //Read the actual receiver value for the corresponding function
+    low = (eeprom_data[41] << 8) | eeprom_data[40];                              //Store the low value for the specific receiver input channel
+    center = (eeprom_data[37] << 8) | eeprom_data[36];                           //Store the center value for the specific receiver input channel
+    high = (eeprom_data[39] << 8) | eeprom_data[38];                             //Store the high value for the specific receiver input channel
+
+    if(actual < center){                                                         //The actual receiver value is lower than the center value
+      if(actual < low)actual = low;                                              //Limit the lowest value to the value that was detected during setup
+      difference = ((long)(center - actual) * (long)500) / (center - low);       //Calculate and scale the actual value to a 1000 - 2000us value
+      if(reverse == 1)return 1500 + difference;                                  //If the channel is reversed
+      else return 1500 - difference;                                             //If the channel is not reversed
+    }
+    else if(actual > center){                                                    //The actual receiver value is higher than the center value
+      if(actual > high)actual = high;                                            //Limit the lowest value to the value that was detected during setup
+      difference = ((long)(actual - center) * (long)500) / (high - center);      //Calculate and scale the actual value to a 1000 - 2000us value
+      if(reverse == 1)return 1500 - difference;                                  //If the channel is reversed
+      else return 1500 + difference;                                             //If the channel is not reversed
+    }
+    else return 1500; 
   }
-  else if(actual > center){                                                                        //The actual receiver value is higher than the center value
-    if(actual > high)actual = high;                                            //Limit the lowest value to the value that was detected during setup
-    difference = ((long)(actual - center) * (long)500) / (high - center);      //Calculate and scale the actual value to a 1000 - 2000us value
-    if(reverse == 1)return 1500 - difference;                                  //If the channel is reversed
-    else return 1500 + difference;                                             //If the channel is not reversed
-  }
-  else return 1500;
 }
 
 void print_signals(){
@@ -433,6 +479,12 @@ void print_signals(){
   else if(receiver_input_channel_4 - 1520 > 0)Serial.print(">>>");
   else Serial.print("-+-");
   Serial.println(receiver_input_channel_4);
+
+  Serial.print("  AUX:");
+  if(receiver_input_channel_5 - 1480 < 0)Serial.print("<<<");
+  else if(receiver_input_channel_5 - 1520 > 0)Serial.print(">>>");
+  else Serial.print("-+-");
+  Serial.println(receiver_input_channel_5);
 }
 
 void esc_pulse_output(){

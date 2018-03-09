@@ -42,14 +42,14 @@ boolean auto_level = true;                 //Auto level on (true) or off (false)
 //Declaring global variables
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 byte last_channel_1, last_channel_2, last_channel_3, last_channel_4;
-byte eeprom_data[36];
+byte eeprom_data[43];
 byte highByte, lowByte;
-volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
+volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4, receiver_input_channel_5;
 int counter_channel_1, counter_channel_2, counter_channel_3, counter_channel_4, loop_counter;
 int esc_1, esc_2, esc_3, esc_4;
 int throttle, battery_voltage;
 int cal_int, start, gyro_address;
-int receiver_input[5];
+int receiver_input[6];
 int temperature;
 int acc_axis[4], gyro_axis[4];
 float roll_level_adjust, pitch_level_adjust;
@@ -134,6 +134,10 @@ void setup(){
   PCMSK1 |= (1 << PCINT9);  // set PCINT9 (digital input A1)to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT10);  // set PCINT10 (digital input A2)to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT11);  // set PCINT11 (digital input A3)to trigger an interrupt on state change
+
+  //use PCINT0 - pin 8 for AUX channel
+  PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
+  PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8)to trigger an interrupt on state change channel 5-Hov Throt
 
   //Wait until the receiver is active and the throtle is set to the lower position.
   while(receiver_input_channel_3 < 990 || receiver_input_channel_3 > 1020 || receiver_input_channel_4 < 1400){
