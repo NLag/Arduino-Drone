@@ -33,6 +33,11 @@ unsigned long timer, timer_1, timer_2, timer_3, timer_4, timer_5, current_time;
 float gyro_pitch, gyro_roll, gyro_yaw;
 float gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal;
 
+unsigned long sonar_start = 0;
+byte start_timer = 0;
+unsigned long duration = 0;
+double distance = 0;
+
 
 //Setup routine
 void setup(){
@@ -221,7 +226,7 @@ void loop(){
     Serial.print(center_channel_4);
     Serial.print(F(" - "));
     Serial.println(high_channel_4);
-    Serial.print(F("Digital input A4 values:"));
+    Serial.print(F("Digital input 8 values:"));
     Serial.print(low_channel_5);
     Serial.print(F(" - "));
     Serial.print(center_channel_5);
@@ -406,12 +411,27 @@ void loop(){
     Serial.println(F("LED test"));
     Serial.println(F("==================================================="));
     digitalWrite(12, HIGH);
+    digitalWrite(11, HIGH);
     Serial.println(F("The LED should now be lit"));
+    Serial.println(F("Both Red and Blue LED"));
     Serial.println(F("Move stick 'nose up' and back to center to continue"));
     check_to_continue();
     digitalWrite(12, LOW);
+    digitalWrite(11, LOW);
   }
   
+  if(error == 0){
+    Serial.println(F(""));
+    Serial.println(F("==================================================="));
+    Serial.println(F("Sonar test"));
+    Serial.println(F("==================================================="));
+    start_sonar();
+    Serial.println(F("Sonar activated"));
+    Serial.println(F("Blue LED turn on when Object near sonar 1 meter"));
+    Serial.println(F("Move stick 'nose up' and back to center to continue"));
+    check_to_continue();
+  }
+
   Serial.println(F(""));
   
   if(error == 0){
@@ -855,8 +875,16 @@ void check_gyro_axes(byte movement){
   
 }
 
-//This routine is called every time input 8 changed state
-ISR (PCINT0_vect) {
+void start_sonar(){
+  PORTB &= B11111110;       //Set trig to low
+  delayMicroseconds(2);
+  PORTB |= B00000001;       //trig to high, start pulse
+  delayMicroseconds(10);    //pluse 10microsec
+  PORTB &= B11111110;       //Set trig to low
+}
+
+//This routine is called every time input 8 , 10 changed state
+ISR(PCINT0_vect) {
   current_time = micros();
   //Channel 5=========================================
   if(PINB & B00000001 ){                                       //Is input 8 high?
@@ -868,6 +896,28 @@ ISR (PCINT0_vect) {
   else if(last_channel_5 == 1){                                //Input 8 is not high and changed from 1 to 0
     last_channel_5 = 0;                                        //Remember current input state
     receiver_input_channel_5 = current_time - timer_5;         //Channel 5 is current_time - timer_5
+  }
+  //Channel 10=========================================
+  if(PINB & B00000100 ){                                       //Is input 10 high?
+    if(start_timer == 0){                                    //Input 10 changed from 0 to 1
+      start_timer = 1;                                       //Remember current input state
+      sonar_start = current_time;                              //Set sonar_start to current_time
+    }
+  }
+  else if(start_timer == 1){                                //Input 10 is not high and changed from 1 to 0
+    start_timer = 0;                                        //Remember current input state
+    duration = current_time - sonar_start;                  //Sonar duration is current_time - sonar_start
+    if (duration < 0)
+    {
+      duration = 4294967295 + duration;
+    }
+    distance = (duration*3.4)/2;                            //Calculation distance
+    if (distance < 1100 && distance >0) {
+      PORTB |= B00000100;     //set led to high
+    } else {
+      PORTB &= B11111011;     //set led to low
+    }
+    start_sonar();
   }
 }
 

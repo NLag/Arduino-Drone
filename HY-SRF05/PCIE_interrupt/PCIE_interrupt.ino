@@ -1,4 +1,4 @@
-unsigned long timing_start = 0;
+unsigned long sonar_start = 0;
 unsigned long current = 0;
 byte start_timer = 0;
 unsigned long duration = 0;
@@ -24,7 +24,7 @@ void startsonar() {
   PORTB |= B00000001;       //trig to high, start pulse
   delayMicroseconds(10);    //pluse 10microsec
   PORTB &= B11111110;       //Set trig to low
-  timing_start = micros();
+  // sonar_start = micros();
 }
 
 void loop() {
@@ -36,14 +36,14 @@ ISR(PCINT0_vect){
   current = micros();
   if ((start_timer == 0) && digitalRead(9)) {
     start_timer = 1;
-    timing_start = current;
+    sonar_start = current;
   } else if((start_timer == 1) && (digitalRead(9)==0)){
     start_timer = 0;
-    if (current < timing_start) {
-      duration = 4294967295 - timing_start;
+    if (current < sonar_start) {
+      duration = 4294967295 - sonar_start;
       duration += current;
     } else {
-      duration = current - timing_start;
+      duration = current - sonar_start;
     }
     distance = duration*0.34/2;
     Serial.print(duration);
