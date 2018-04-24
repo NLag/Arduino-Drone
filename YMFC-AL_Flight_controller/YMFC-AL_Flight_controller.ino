@@ -17,6 +17,7 @@
 
 #include <Wire.h>                          //Include the Wire.h library so we can communicate with the gyro.
 #include <EEPROM.h>                        //Include the EEPROM.h library so we can store information onto the EEPROM
+#include<Servo.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //PID gain and limit settings
@@ -41,7 +42,7 @@ boolean auto_level = true;                 //Auto level on (true) or off (false)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Declaring global variables
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-byte last_channel_1, last_channel_2, last_channel_3, last_channel_4;
+byte last_channel_1, last_channel_2, last_channel_3, last_channel_4, last_channel_5;
 byte eeprom_data[43];
 byte highByte, lowByte;
 volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4, receiver_input_channel_5;
@@ -56,7 +57,7 @@ float roll_level_adjust, pitch_level_adjust;
 
 long acc_x, acc_y, acc_z, acc_total_vector;
 unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
-unsigned long timer_1, timer_2, timer_3, timer_4, current_time;
+unsigned long timer_1, timer_2, timer_3, timer_4, timer_5, current_time;
 unsigned long loop_timer;
 double gyro_pitch, gyro_roll, gyro_yaw;
 double gyro_axis_cal[4];
@@ -66,6 +67,14 @@ float pid_i_mem_pitch, pid_pitch_setpoint, gyro_pitch_input, pid_output_pitch, p
 float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_yaw_d_error;
 float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
 boolean gyro_angles_set;
+
+unsigned long sonar_start = 0;
+byte start_timer = 0;
+unsigned long duration = 0;
+double distance = 0;
+
+Servo cam_servo;
+int campos = 0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Setup routine
@@ -83,7 +92,7 @@ void setup(){
 
   //Arduino (Atmega) pins default to inputs, so they don't need to be explicitly declared as inputs.
   DDRD |= B11110000;                                                        //Configure digital poort 4, 5, 6 and 7 as output.
-  DDRB |= B00110000;                                                        //Configure digital poort 12 and 13 as output.
+  DDRB |= B00111000;                                                        //Configure digital poort 12 and 13 as output.
 
   //Use the led on the Arduino for startup indication.
   digitalWrite(12,HIGH);                                                    //Turn on the warning led.
@@ -121,12 +130,6 @@ void setup(){
   gyro_axis_cal[1] /= 2000;                                                 //Divide the roll total by 2000.
   gyro_axis_cal[2] /= 2000;                                                 //Divide the pitch total by 2000.
   gyro_axis_cal[3] /= 2000;                                                 //Divide the yaw total by 2000.
-
-  // PCICR |= (1 << PCIE0);                                                    //Set PCIE0 to enable PCMSK0 scan.
-  // PCMSK0 |= (1 << PCINT0);                                                  //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
-  // PCMSK0 |= (1 << PCINT1);                                                  //Set PCINT1 (digital input 9)to trigger an interrupt on state change.
-  // PCMSK0 |= (1 << PCINT2);                                                  //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
-  // PCMSK0 |= (1 << PCINT3);                                                  //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
 
   //use PCINT8,9,10,11
   PCICR |= (1 << PCIE1);    // set PCIE1 to enable PCMSK1 scan
@@ -168,6 +171,9 @@ void setup(){
 
   //When everything is done, turn off the led.
   digitalWrite(12,LOW);                                                     //Turn off the warning led.
+
+  cam_servo.attach(3);
+  cam_servo.write(0);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Main program loop
@@ -353,6 +359,55 @@ void loop(){
     if(timer_channel_3 <= esc_loop_timer)PORTD &= B10111111;                //Set digital output 6 to low if the time is expired.
     if(timer_channel_4 <= esc_loop_timer)PORTD &= B01111111;                //Set digital output 7 to low if the time is expired.
   }
+
+  campos = map(receiver_input[5],1100,1800,0,180);
+  cam_servo.write(campos);
+}
+
+void start_sonar(){
+  PORTB &= B11111101;       //Set trig to low
+  delayMicroseconds(2);
+  PORTB |= B00000010;       //trig to high, start pulse
+  delayMicroseconds(10);    //pluse 10microsec
+  PORTB &= B11111101;       //Set trig to low
+}
+
+//This routine is called every time input 8 , 10 changed state
+ISR(PCINT0_vect) {
+  current_time = micros();
+  //Channel 5=========================================
+  if(PINB & B00000001 ){                                       //Is input 8 high?
+    if(last_channel_5 == 0){                                   //Input 8 changed from 0 to 1
+      last_channel_5 = 1;                                       //Remember current input state
+      timer_5 = current_time;                                  //Set timer_4 to current_time
+    }
+  }
+  else if(last_channel_5 == 1){                                //Input 8 is not high and changed from 1 to 0
+    last_channel_5 = 0;                                        //Remember current input state
+    receiver_input[5] = current_time - timer_5;         //Channel 5 is current_time - timer_5
+  }
+  //Channel 10=========================================
+  if(PINB & B00000100 ){                                       //Is input 10 high?
+    if(start_timer == 0){                                    //Input 10 changed from 0 to 1
+      start_timer = 1;                                       //Remember current input state
+      sonar_start = current_time;                              //Set sonar_start to current_time
+    }
+  }
+  else if(start_timer == 1){                                //Input 10 is not high and changed from 1 to 0
+    start_timer = 0;                                        //Remember current input state
+    duration = current_time - sonar_start;                  //Sonar duration is current_time - sonar_start
+    if (duration < 0)
+    {
+      duration = 4294967295 + duration;
+    }
+    distance = (duration*0.34)/2;                            //Calculation distance
+    if (distance < 1100 && distance >0) {
+      PORTB |= B00001000;     //set led to high
+    } else {
+      PORTB &= B11110111;     //set led to low
+    }
+    start_sonar();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,7 +418,7 @@ void loop(){
 ISR(PCINT1_vect){
   current_time = micros();
   //Channel 1=========================================
-  if(PINC & C00000001){                                                     //Is input 8 high?
+  if(PINC & B00000001){                                                     //Is input 8 high?
     if(last_channel_1 == 0){                                                //Input 8 changed from 0 to 1.
       last_channel_1 = 1;                                                   //Remember current input state.
       timer_1 = current_time;                                               //Set timer_1 to current_time.
@@ -374,7 +429,7 @@ ISR(PCINT1_vect){
     receiver_input[1] = current_time - timer_1;                             //Channel 1 is current_time - timer_1.
   }
   //Channel 2=========================================
-  if(PINC & C00000010 ){                                                    //Is input 9 high?
+  if(PINC & B00000010 ){                                                    //Is input 9 high?
     if(last_channel_2 == 0){                                                //Input 9 changed from 0 to 1.
       last_channel_2 = 1;                                                   //Remember current input state.
       timer_2 = current_time;                                               //Set timer_2 to current_time.
@@ -385,7 +440,7 @@ ISR(PCINT1_vect){
     receiver_input[2] = current_time - timer_2;                             //Channel 2 is current_time - timer_2.
   }
   //Channel 3=========================================
-  if(PINC & C00000100 ){                                                    //Is input 10 high?
+  if(PINC & B00000100 ){                                                    //Is input 10 high?
     if(last_channel_3 == 0){                                                //Input 10 changed from 0 to 1.
       last_channel_3 = 1;                                                   //Remember current input state.
       timer_3 = current_time;                                               //Set timer_3 to current_time.
@@ -397,7 +452,7 @@ ISR(PCINT1_vect){
 
   }
   //Channel 4=========================================
-  if(PINC & C00001000 ){                                                    //Is input 11 high?
+  if(PINC & B00001000 ){                                                    //Is input 11 high?
     if(last_channel_4 == 0){                                                //Input 11 changed from 0 to 1.
       last_channel_4 = 1;                                                   //Remember current input state.
       timer_4 = current_time;                                               //Set timer_4 to current_time.

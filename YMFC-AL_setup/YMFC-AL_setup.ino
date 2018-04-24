@@ -17,6 +17,7 @@
 
 #include <Wire.h>               //Include the Wire.h library so we can communicate with the gyro
 #include <EEPROM.h>             //Include the EEPROM.h library so we can store information onto the EEPROM
+#include <Servo.h>
 
 //Declaring Global Variables
 byte last_channel_1, last_channel_2, last_channel_3, last_channel_4, last_channel_5;
@@ -37,6 +38,9 @@ unsigned long sonar_start = 0;
 byte start_timer = 0;
 unsigned long duration = 0;
 double distance = 0;
+
+Servo cam_servo;  // create servo object to control a servo
+int pos = 0;    // variable to store the servo position
 
 
 //Setup routine
@@ -64,6 +68,10 @@ void setup(){
   Wire.begin();             //Start the I2C as master
   Serial.begin(57600);      //Start the serial connetion @ 57600bps
   delay(250);               //Give the gyro time to start 
+
+  cam_servo.attach(3);  // attaches the servo on pin 9 to the servo object
+  cam_servo.write(0);
+  
 }
 
 //Main program
@@ -428,6 +436,25 @@ void loop(){
     start_sonar();
     Serial.println(F("Sonar activated"));
     Serial.println(F("Blue LED turn on when Object near sonar 1 meter"));
+    Serial.println(F("Move stick 'nose up' and back to center to continue"));
+    check_to_continue();
+  }
+
+  if(error == 0){
+    Serial.println(F(""));
+    Serial.println(F("==================================================="));
+    Serial.println(F("Servo test"));
+    Serial.println(F("==================================================="));
+    Serial.println(F("Servo turning from 0 - 180"));
+    for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+      // in steps of 1 degree
+      cam_servo.write(pos);              // tell servo to go to position in variable 'pos'
+      delay(15);                       // waits 15ms for the servo to reach the position
+    }
+    for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
+      cam_servo.write(pos);              // tell servo to go to position in variable 'pos'
+      delay(15);                       // waits 15ms for the servo to reach the position
+    }
     Serial.println(F("Move stick 'nose up' and back to center to continue"));
     check_to_continue();
   }
@@ -876,11 +903,11 @@ void check_gyro_axes(byte movement){
 }
 
 void start_sonar(){
-  PORTB &= B11111110;       //Set trig to low
+  PORTB &= B11111101;       //Set trig to low
   delayMicroseconds(2);
-  PORTB |= B00000001;       //trig to high, start pulse
+  PORTB |= B00000010;       //trig to high, start pulse
   delayMicroseconds(10);    //pluse 10microsec
-  PORTB &= B11111110;       //Set trig to low
+  PORTB &= B11111101;       //Set trig to low
 }
 
 //This routine is called every time input 8 , 10 changed state
@@ -911,11 +938,11 @@ ISR(PCINT0_vect) {
     {
       duration = 4294967295 + duration;
     }
-    distance = (duration*3.4)/2;                            //Calculation distance
+    distance = (duration*0.34)/2;                            //Calculation distance
     if (distance < 1100 && distance >0) {
-      PORTB |= B00000100;     //set led to high
+      PORTB |= B00001000;     //set led to high
     } else {
-      PORTB &= B11111011;     //set led to low
+      PORTB &= B11110111;     //set led to low
     }
     start_sonar();
   }
