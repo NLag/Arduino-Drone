@@ -22,20 +22,20 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //PID gain and limit settings
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-float pid_p_gain_roll = 1.3;               //Gain setting for the roll P-controller
-float pid_i_gain_roll = 0.04;              //Gain setting for the roll I-controller
-float pid_d_gain_roll = 18.0;              //Gain setting for the roll D-controller
-int pid_max_roll = 400;                    //Maximum output of the PID-controller (+/-)
+float pid_p_gain_roll = 6.0;               //Gain setting for the roll P-controller
+float pid_i_gain_roll = 2.5;              //Gain setting for the roll I-controller
+float pid_d_gain_roll = 2.5;              //Gain setting for the roll D-controller
+int pid_max_roll = 150;                    //Maximum output of the PID-controller (+/-)
 
-float pid_p_gain_pitch = pid_p_gain_roll;  //Gain setting for the pitch P-controller.
-float pid_i_gain_pitch = pid_i_gain_roll;  //Gain setting for the pitch I-controller.
-float pid_d_gain_pitch = pid_d_gain_roll;  //Gain setting for the pitch D-controller.
+float pid_p_gain_pitch = 4;               //Gain setting for the pitch P-controller.
+float pid_i_gain_pitch = -0.3;            //Gain setting for the pitch I-controller.
+float pid_d_gain_pitch = 1.1;              //Gain setting for the pitch D-controller.
 int pid_max_pitch = pid_max_roll;          //Maximum output of the PID-controller (+/-)
 
-float pid_p_gain_yaw = 4.0;                //Gain setting for the pitch P-controller. //4.0
-float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. //0.02
-float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
-int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)
+float pid_p_gain_yaw = 2.0;                //Gain setting for the yaw P-controller. //4.0
+float pid_i_gain_yaw = 0.5;               //Gain setting for the yaw I-controller. //0.02
+float pid_d_gain_yaw = 3.5;                //Gain setting for the yaw D-controller.
+int pid_max_yaw = 150;                     //Maximum output of the PID-controller (+/-)
 
 boolean auto_level = true;                 //Auto level on (true) or off (false)
 
@@ -360,7 +360,7 @@ void loop(){
     if(timer_channel_4 <= esc_loop_timer)PORTD &= B01111111;                //Set digital output 7 to low if the time is expired.
   }
 
-  campos = map(receiver_input[5],1100,1800,0,180);
+  campos = map(receiver_input[5],1100,1900,0,180);
   cam_servo.write(campos);
 }
 

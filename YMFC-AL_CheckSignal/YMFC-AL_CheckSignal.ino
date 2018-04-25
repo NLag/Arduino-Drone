@@ -129,8 +129,8 @@ void loop(){
 //    Serial.println(receiver_input_channel_3);
 //    Serial.print(F("Digital input A3 = "));
 //    Serial.println(receiver_input_channel_4);
-//    Serial.print(F("Digital input 8 = "));
-//    Serial.println(receiver_input_channel_5);
+    Serial.print(F("Digital input 8 = "));
+    Serial.println(receiver_input_channel_5);
     
     
 

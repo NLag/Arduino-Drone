@@ -64,22 +64,12 @@ void setup(){
   DDRD |= B11110000;                                                                    //Configure digital poort 4, 5, 6 and 7 as output.
   DDRB |= B00010000;                                                                    //Configure digital poort 12 as output.
 
-//  PCICR |= (1 << PCIE0);                                                                // set PCIE0 to enable PCMSK0 scan.
-//  PCMSK0 |= (1 << PCINT0);                                                              // set PCINT0 (digital input 8) to trigger an interrupt on state change.
-//  PCMSK0 |= (1 << PCINT1);                                                              // set PCINT1 (digital input 9)to trigger an interrupt on state change.
-//  PCMSK0 |= (1 << PCINT2);                                                              // set PCINT2 (digital input 10)to trigger an interrupt on state change.
-//  PCMSK0 |= (1 << PCINT3);                                                              // set PCINT3 (digital input 11)to trigger an interrupt on state change.
-
   //use PCINT8,9,10,11
   PCICR |= (1 << PCIE1);    // set PCIE1 to enable PCMSK1 scan
   PCMSK1 |= (1 << PCINT8);  // set PCINT8 (digital input A0) to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT9);  // set PCINT9 (digital input A1)to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT10);  // set PCINT10 (digital input A2)to trigger an interrupt on state change
   PCMSK1 |= (1 << PCINT11);  // set PCINT11 (digital input A3)to trigger an interrupt on state change
-  
-  //use PCINT0 - pin 8 for AUX channel
-  PCICR |= (1 << PCIE0);    // set PCIE0 to enable PCMSK0 scan
-  PCMSK0 |= (1 << PCINT0);  // set PCINT0 (digital input 8)to trigger an interrupt on state change channel 5-Hov Throt
 
   for(data = 0; data <= 42; data++)eeprom_data[data] = EEPROM.read(data);               //Read EEPROM for faster data access
 
@@ -161,7 +151,6 @@ void loop(){
     receiver_input_channel_2 = convert_receiver_channel(2);                           //Convert the actual receiver signals for roll to the standard 1000 - 2000us.
     receiver_input_channel_3 = convert_receiver_channel(3);                           //Convert the actual receiver signals for throttle to the standard 1000 - 2000us.
     receiver_input_channel_4 = convert_receiver_channel(4);                           //Convert the actual receiver signals for yaw to the standard 1000 - 2000us.
-    receiver_input_channel_5 = convert_receiver_channel(5);                           //Convert the actual receiver signals for yaw to the standard 1000 - 2000us.
 
     if(loop_counter == 125){                                                            //Print the receiver values when the loop_counter variable equals 250.
       print_signals();                                                                  //Print the receiver values on the serial monitor.
@@ -317,22 +306,6 @@ void loop(){
   }
 }
 
-//This routine is called every time input 8 changed state
-ISR (PCINT0_vect) {
-  current_time = micros();
-  //Channel 5=========================================
-  if(PINB & B00000001 ){                                       //Is input 8 high?
-    if(last_channel_5 == 0){                                   //Input 8 changed from 0 to 1
-      last_channel_5 = 1;                                       //Remember current input state
-      timer_5 = current_time;                                  //Set timer_4 to current_time
-    }
-  }
-  else if(last_channel_5 == 1){                                //Input 8 is not high and changed from 1 to 0
-    last_channel_5 = 0;                                        //Remember current input state
-    receiver_input_channel_5 = current_time - timer_5;         //Channel 5 is current_time - timer_5
-  }
-}
-
 //This routine is called every time input 8, 9, 10 or 11 changed state.
 ISR(PCINT1_vect){
   current_time = micros();
@@ -385,12 +358,11 @@ ISR(PCINT1_vect){
 //Checck if the receiver values are valid within 10 seconds
 void wait_for_receiver(){
   byte zero = 0;                                                                //Set all bits in the variable zero to 0
-  while(zero < 31){                                                             //Stay in this loop until the 4 lowest bits are set
+  while(zero < 15){                                                             //Stay in this loop until the 4 lowest bits are set
     if(receiver_input[1] < 2100 && receiver_input[1] > 900)zero |= 0b00000001;  //Set bit 0 if the receiver pulse 1 is within the 900 - 2100 range
     if(receiver_input[2] < 2100 && receiver_input[2] > 900)zero |= 0b00000010;  //Set bit 1 if the receiver pulse 2 is within the 900 - 2100 range
     if(receiver_input[3] < 2100 && receiver_input[3] > 900)zero |= 0b00000100;  //Set bit 2 if the receiver pulse 3 is within the 900 - 2100 range
-    if(receiver_input[4] < 2100 && receiver_input[4] > 900)zero |= 0b00001000;  //Set bit 3 if the receiver pulse 4 is within the 900 - 2100 range
-    if(receiver_input[5] < 2100 && receiver_input[5] > 900)zero |= 0b00010000;  //Set bit 4 if the receiver pulse 5 is within the 900 - 2100 range
+    if(receiver_input[4] < 2100 && receiver_input[4] > 900)zero |= 0b00001000;  //Set bit 3 if the receiver pulse 4 is within the 900 - 2100 range    
     delay(500);                                                                 //Wait 500 milliseconds
   }
 }
